@@ -19,6 +19,12 @@ function App() {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [showAdmin, setShowAdmin] = useState(false);
   
+  // Estados para consulta de agendamentos
+  const [showConsultation, setShowConsultation] = useState(false);
+  const [consultationPhone, setConsultationPhone] = useState('');
+  const [userBookings, setUserBookings] = useState([]);
+  const [consultationLoading, setConsultationLoading] = useState(false);
+  
   // Estados para configuração de horários
   const [scheduleConfig, setScheduleConfig] = useState({
     workingDays: {
@@ -95,7 +101,7 @@ function App() {
       setShowAdmin(true);
       localStorage.setItem('isAuthenticated', 'true');
     } else {
-      alert('Usuário ou senha incorretos!');
+      window.alert('Usuário ou senha incorretos!');
     }
   };
 
@@ -105,6 +111,35 @@ function App() {
     setShowAdmin(false);
     setShowLogin(false);
     localStorage.removeItem('isAuthenticated');
+  };
+
+  // Função para consultar agendamentos por telefone
+  const handleConsultation = async () => {
+    if (!consultationPhone.trim()) {
+      window.alert('Por favor, digite seu número de telefone.');
+      return;
+    }
+
+    setConsultationLoading(true);
+    try {
+      const allBookings = await bookingService.getAllBookings();
+      const userBookings = allBookings.filter(booking => 
+        booking.phone.replace(/\D/g, '') === consultationPhone.replace(/\D/g, '')
+      );
+      setUserBookings(userBookings);
+    } catch (error) {
+      console.error('Erro ao consultar agendamentos:', error);
+      window.alert('Erro ao consultar agendamentos. Tente novamente.');
+    } finally {
+      setConsultationLoading(false);
+    }
+  };
+
+  // Função para fechar consulta
+  const closeConsultation = () => {
+    setShowConsultation(false);
+    setConsultationPhone('');
+    setUserBookings([]);
   };
 
   // Função para salvar configuração de horários
@@ -181,7 +216,7 @@ function App() {
       const updatedBookings = [...bookings, savedBooking];
       localStorage.setItem('bookings', JSON.stringify(updatedBookings));
       
-      alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
+      window.alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
       setBookingData({
         name: '',
         phone: '',
@@ -193,7 +228,7 @@ function App() {
       });
     } catch (error) {
       console.error('Erro ao salvar agendamento:', error);
-      alert('Erro ao enviar agendamento. Tente novamente.');
+      window.alert('Erro ao enviar agendamento. Tente novamente.');
     }
   };
 
@@ -210,6 +245,14 @@ function App() {
               <li><a href="#pricing">Preços</a></li>
               <li><a href="#booking">Agendar</a></li>
               <li><a href="#about">Sobre</a></li>
+              <li>
+                <button 
+                  onClick={() => setShowConsultation(true)} 
+                  className="consultation-btn"
+                >
+                  Consultar Agendamento
+                </button>
+              </li>
               {isAuthenticated ? (
                 <li>
                   <button onClick={handleLogout} className="logout-btn">
@@ -710,38 +753,85 @@ function App() {
                 <h3>Agendamentos ({bookings.length})</h3>
                 <div className="bookings-list">
                   {bookings.map(booking => (
-                    <div key={booking.id} className="booking-item">
-                      <div className="booking-info">
-                        <strong>{booking.name}</strong>
-                        <span>{booking.service}</span>
-                        <span>{booking.date} às {booking.time}</span>
-                        <span>{booking.phone}</span>
+                    <div key={booking.id} className="booking-item enhanced">
+                      <div className="booking-header">
+                        <div className="booking-title">
+                          <h4>{booking.name}</h4>
+                          <span className={`status-badge status-${booking.status}`}>
+                            {booking.status === 'pending' && '⏳ Pendente'}
+                            {booking.status === 'confirmed' && '✅ Confirmado'}
+                            {booking.status === 'cancelled' && '❌ Cancelado'}
+                            {booking.status === 'completed' && '🎉 Concluído'}
+                          </span>
+                        </div>
+                        <div className="booking-date">
+                          {new Date(booking.date).toLocaleDateString('pt-BR')} às {booking.time}
+                        </div>
                       </div>
+                      
+                      <div className="booking-details">
+                        <div className="detail-row">
+                          <div className="detail-item">
+                            <strong>📞 Telefone:</strong>
+                            <span>{booking.phone}</span>
+                          </div>
+                          <div className="detail-item">
+                            <strong>📧 Email:</strong>
+                            <span>{booking.email}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="detail-row">
+                          <div className="detail-item">
+                            <strong>💅 Serviço:</strong>
+                            <span>{booking.service}</span>
+                          </div>
+                          <div className="detail-item">
+                            <strong>📅 Data de Criação:</strong>
+                            <span>{booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('pt-BR') : 'N/A'}</span>
+                          </div>
+                        </div>
+                        
+                        {booking.message && (
+                          <div className="detail-row full-width">
+                            <div className="detail-item">
+                              <strong>💬 Observações:</strong>
+                              <span className="message-text">{booking.message}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
                       <div className="booking-actions">
-                        <select
-                          value={booking.status}
-                          onChange={async (e) => {
-                            try {
-                              await bookingService.updateBookingStatus(booking.id, e.target.value);
-                              const updatedBookings = bookings.map(b => 
-                                b.id === booking.id ? { ...b, status: e.target.value } : b
-                              );
-                              setBookings(updatedBookings);
-                              localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-                            } catch (error) {
-                              console.error('Erro ao atualizar status:', error);
-                              alert('Erro ao atualizar status do agendamento.');
-                            }
-                          }}
-                        >
-                          <option value="pending">Pendente</option>
-                          <option value="confirmed">Confirmado</option>
-                          <option value="cancelled">Cancelado</option>
-                          <option value="completed">Concluído</option>
-                        </select>
+                        <div className="status-control">
+                          <label>Status:</label>
+                          <select
+                            value={booking.status}
+                            onChange={async (e) => {
+                              try {
+                                await bookingService.updateBookingStatus(booking.id, e.target.value);
+                                const updatedBookings = bookings.map(b => 
+                                  b.id === booking.id ? { ...b, status: e.target.value } : b
+                                );
+                                setBookings(updatedBookings);
+                                localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+                              } catch (error) {
+                                console.error('Erro ao atualizar status:', error);
+                                window.alert('Erro ao atualizar status do agendamento.');
+                              }
+                            }}
+                            className="status-select"
+                          >
+                            <option value="pending">Pendente</option>
+                            <option value="confirmed">Confirmado</option>
+                            <option value="cancelled">Cancelado</option>
+                            <option value="completed">Concluído</option>
+                          </select>
+                        </div>
+                        
                         <button
                           onClick={async () => {
-                            if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+                            if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
                               try {
                                 await bookingService.deleteBooking(booking.id);
                                 const updatedBookings = bookings.filter(b => b.id !== booking.id);
@@ -749,22 +839,97 @@ function App() {
                                 localStorage.setItem('bookings', JSON.stringify(updatedBookings));
                               } catch (error) {
                                 console.error('Erro ao excluir agendamento:', error);
-                                alert('Erro ao excluir agendamento.');
+                                window.alert('Erro ao excluir agendamento.');
                               }
                             }
                           }}
                           className="delete-btn"
                         >
-                          Excluir
+                          🗑️ Excluir
                         </button>
                       </div>
                     </div>
                   ))}
                   {bookings.length === 0 && (
-                    <p>Nenhum agendamento encontrado.</p>
+                    <div className="no-bookings">
+                      <p>Nenhum agendamento encontrado.</p>
+                    </div>
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Consulta de Agendamentos */}
+      {showConsultation && (
+        <div className="modal-overlay">
+          <div className="modal consultation-modal">
+            <div className="modal-header">
+              <h2>Consultar Agendamento</h2>
+              <button onClick={closeConsultation} className="close-btn">&times;</button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="consultation-form">
+                <div className="form-group">
+                  <label htmlFor="phone">Número de Telefone:</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={consultationPhone}
+                    onChange={(e) => setConsultationPhone(e.target.value)}
+                    placeholder="(11) 99999-9999"
+                    className="form-input"
+                  />
+                </div>
+                
+                <button 
+                  onClick={handleConsultation}
+                  disabled={consultationLoading}
+                  className="btn btn-primary consultation-submit-btn"
+                >
+                  {consultationLoading ? 'Consultando...' : 'Consultar'}
+                </button>
+              </div>
+
+              {/* Resultados da consulta */}
+              {userBookings.length > 0 && (
+                <div className="consultation-results">
+                  <h3>Seus Agendamentos:</h3>
+                  <div className="bookings-list">
+                    {userBookings.map((booking, index) => (
+                      <div key={booking.id || index} className="booking-card">
+                        <div className="booking-info">
+                          <h4>{booking.name}</h4>
+                          <p><strong>Serviço:</strong> {booking.service}</p>
+                          <p><strong>Data:</strong> {new Date(booking.date).toLocaleDateString('pt-BR')}</p>
+                          <p><strong>Horário:</strong> {booking.time}</p>
+                          <p><strong>Telefone:</strong> {booking.phone}</p>
+                          {booking.message && (
+                            <p><strong>Observações:</strong> {booking.message}</p>
+                          )}
+                        </div>
+                        <div className="booking-status">
+                          <span className={`status-badge status-${booking.status}`}>
+                            {booking.status === 'pending' && '⏳ Pendente'}
+                            {booking.status === 'confirmed' && '✅ Confirmado'}
+                            {booking.status === 'cancelled' && '❌ Cancelado'}
+                            {booking.status === 'completed' && '🎉 Concluído'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {userBookings.length === 0 && consultationPhone && !consultationLoading && (
+                <div className="no-bookings">
+                  <p>Nenhum agendamento encontrado para este número de telefone.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
