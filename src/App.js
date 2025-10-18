@@ -19,12 +19,15 @@ function App() {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [showAdmin, setShowAdmin] = useState(false);
   
+<<<<<<< HEAD
   // Estados para consulta de agendamentos
   const [showConsultation, setShowConsultation] = useState(false);
   const [consultationPhone, setConsultationPhone] = useState('');
   const [userBookings, setUserBookings] = useState([]);
   const [consultationLoading, setConsultationLoading] = useState(false);
   
+=======
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
   // Estados para configuração de horários
   const [scheduleConfig, setScheduleConfig] = useState({
     workingDays: {
@@ -101,7 +104,11 @@ function App() {
       setShowAdmin(true);
       localStorage.setItem('isAuthenticated', 'true');
     } else {
+<<<<<<< HEAD
       window.alert('Usuário ou senha incorretos!');
+=======
+      alert('Usuário ou senha incorretos!');
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     }
   };
 
@@ -113,6 +120,7 @@ function App() {
     localStorage.removeItem('isAuthenticated');
   };
 
+<<<<<<< HEAD
   // Função para consultar agendamentos por telefone
   const handleConsultation = async () => {
     if (!consultationPhone.trim()) {
@@ -142,6 +150,8 @@ function App() {
     setUserBookings([]);
   };
 
+=======
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
   // Função para salvar configuração de horários
   const saveScheduleConfig = async (newConfig) => {
     try {
@@ -216,7 +226,11 @@ function App() {
       const updatedBookings = [...bookings, savedBooking];
       localStorage.setItem('bookings', JSON.stringify(updatedBookings));
       
+<<<<<<< HEAD
       window.alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
+=======
+      alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
       setBookingData({
         name: '',
         phone: '',
@@ -228,7 +242,11 @@ function App() {
       });
     } catch (error) {
       console.error('Erro ao salvar agendamento:', error);
+<<<<<<< HEAD
       window.alert('Erro ao enviar agendamento. Tente novamente.');
+=======
+      alert('Erro ao enviar agendamento. Tente novamente.');
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     }
   };
 
@@ -245,6 +263,7 @@ function App() {
               <li><a href="#pricing">Preços</a></li>
               <li><a href="#booking">Agendar</a></li>
               <li><a href="#about">Sobre</a></li>
+<<<<<<< HEAD
               <li>
                 <button 
                   onClick={() => setShowConsultation(true)} 
@@ -253,6 +272,8 @@ function App() {
                   Consultar Agendamento
                 </button>
               </li>
+=======
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
               {isAuthenticated ? (
                 <li>
                   <button onClick={handleLogout} className="logout-btn">
@@ -753,6 +774,7 @@ function App() {
                 <h3>Agendamentos ({bookings.length})</h3>
                 <div className="bookings-list">
                   {bookings.map(booking => (
+<<<<<<< HEAD
                     <div key={booking.id} className="booking-item enhanced">
                       <div className="booking-header">
                         <div className="booking-title">
@@ -832,6 +854,40 @@ function App() {
                         <button
                           onClick={async () => {
                             if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
+=======
+                    <div key={booking.id} className="booking-item">
+                      <div className="booking-info">
+                        <strong>{booking.name}</strong>
+                        <span>{booking.service}</span>
+                        <span>{booking.date} às {booking.time}</span>
+                        <span>{booking.phone}</span>
+                      </div>
+                      <div className="booking-actions">
+                        <select
+                          value={booking.status}
+                          onChange={async (e) => {
+                            try {
+                              await bookingService.updateBookingStatus(booking.id, e.target.value);
+                              const updatedBookings = bookings.map(b => 
+                                b.id === booking.id ? { ...b, status: e.target.value } : b
+                              );
+                              setBookings(updatedBookings);
+                              localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+                            } catch (error) {
+                              console.error('Erro ao atualizar status:', error);
+                              alert('Erro ao atualizar status do agendamento.');
+                            }
+                          }}
+                        >
+                          <option value="pending">Pendente</option>
+                          <option value="confirmed">Confirmado</option>
+                          <option value="cancelled">Cancelado</option>
+                          <option value="completed">Concluído</option>
+                        </select>
+                        <button
+                          onClick={async () => {
+                            if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
                               try {
                                 await bookingService.deleteBooking(booking.id);
                                 const updatedBookings = bookings.filter(b => b.id !== booking.id);
@@ -839,21 +895,33 @@ function App() {
                                 localStorage.setItem('bookings', JSON.stringify(updatedBookings));
                               } catch (error) {
                                 console.error('Erro ao excluir agendamento:', error);
+<<<<<<< HEAD
                                 window.alert('Erro ao excluir agendamento.');
+=======
+                                alert('Erro ao excluir agendamento.');
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
                               }
                             }
                           }}
                           className="delete-btn"
                         >
+<<<<<<< HEAD
                           🗑️ Excluir
+=======
+                          Excluir
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
                         </button>
                       </div>
                     </div>
                   ))}
                   {bookings.length === 0 && (
+<<<<<<< HEAD
                     <div className="no-bookings">
                       <p>Nenhum agendamento encontrado.</p>
                     </div>
+=======
+                    <p>Nenhum agendamento encontrado.</p>
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
                   )}
                 </div>
               </div>
@@ -861,6 +929,7 @@ function App() {
           </div>
         </div>
       )}
+<<<<<<< HEAD
 
       {/* Modal de Consulta de Agendamentos */}
       {showConsultation && (
@@ -934,6 +1003,8 @@ function App() {
           </div>
         </div>
       )}
+=======
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     </div>
   );
 }

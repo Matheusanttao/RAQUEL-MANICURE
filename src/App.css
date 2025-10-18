@@ -219,6 +219,7 @@ html {
     page-break-inside: avoid;
   }
 }
+<<<<<<< HEAD
 
 /* Estilos para Consulta de Agendamentos */
 .consultation-btn {
@@ -619,3 +620,5 @@ html {
     justify-content: space-between;
   }
 }
+=======
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566

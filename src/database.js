@@ -5,6 +5,7 @@ export const bookingService = {
   // Salvar novo agendamento
   async createBooking(bookingData) {
     try {
+<<<<<<< HEAD
       // Verificar se o Supabase está configurado corretamente
       if (supabase.from && typeof supabase.from === 'function' && supabase.from().insert) {
         const { data, error } = await supabase
@@ -26,6 +27,15 @@ export const bookingService = {
         localStorage.setItem('bookings', JSON.stringify(bookings))
         return newBooking
       }
+=======
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([bookingData])
+        .select()
+      
+      if (error) throw error
+      return data[0]
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     } catch (error) {
       console.error('Erro ao criar agendamento:', error)
       throw error
@@ -35,6 +45,7 @@ export const bookingService = {
   // Buscar todos os agendamentos
   async getAllBookings() {
     try {
+<<<<<<< HEAD
       // Verificar se o Supabase está configurado corretamente
       if (supabase.from && typeof supabase.from === 'function' && supabase.from().select) {
         const { data, error } = await supabase
@@ -49,6 +60,15 @@ export const bookingService = {
         const bookings = JSON.parse(localStorage.getItem('bookings') || '[]')
         return bookings.sort((a, b) => new Date(a.date) - new Date(b.date))
       }
+=======
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('date', { ascending: true })
+      
+      if (error) throw error
+      return data || []
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     } catch (error) {
       console.error('Erro ao buscar agendamentos:', error)
       return []
@@ -58,6 +78,7 @@ export const bookingService = {
   // Atualizar status do agendamento
   async updateBookingStatus(id, status) {
     try {
+<<<<<<< HEAD
       // Verificar se o Supabase está configurado corretamente
       if (supabase.from && typeof supabase.from === 'function' && supabase.from().update) {
         const { data, error } = await supabase
@@ -79,6 +100,16 @@ export const bookingService = {
         }
         throw new Error('Agendamento não encontrado')
       }
+=======
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({ status })
+        .eq('id', id)
+        .select()
+      
+      if (error) throw error
+      return data[0]
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     } catch (error) {
       console.error('Erro ao atualizar agendamento:', error)
       throw error
@@ -88,6 +119,7 @@ export const bookingService = {
   // Excluir agendamento
   async deleteBooking(id) {
     try {
+<<<<<<< HEAD
       // Verificar se o Supabase está configurado corretamente
       if (supabase.from && typeof supabase.from === 'function' && supabase.from().delete) {
         const { error } = await supabase
@@ -104,6 +136,15 @@ export const bookingService = {
         localStorage.setItem('bookings', JSON.stringify(filteredBookings))
         return true
       }
+=======
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      return true
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error)
       throw error
@@ -116,6 +157,7 @@ export const configService = {
   // Salvar configuração de horários
   async saveScheduleConfig(config) {
     try {
+<<<<<<< HEAD
       // Verificar se o Supabase está configurado corretamente
       if (supabase.from && typeof supabase.from === 'function' && supabase.from().upsert) {
         const { data, error } = await supabase
@@ -130,6 +172,15 @@ export const configService = {
         localStorage.setItem('scheduleConfig', JSON.stringify(config))
         return { id: 1, config }
       }
+=======
+      const { data, error } = await supabase
+        .from('schedule_config')
+        .upsert([{ id: 1, config }])
+        .select()
+      
+      if (error) throw error
+      return data[0]
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     } catch (error) {
       console.error('Erro ao salvar configuração:', error)
       throw error
@@ -139,6 +190,7 @@ export const configService = {
   // Buscar configuração de horários
   async getScheduleConfig() {
     try {
+<<<<<<< HEAD
       // Verificar se o Supabase está configurado corretamente
       if (supabase.from && typeof supabase.from === 'function' && supabase.from().select) {
         const { data, error } = await supabase
@@ -154,6 +206,16 @@ export const configService = {
         const config = localStorage.getItem('scheduleConfig')
         return config ? JSON.parse(config) : null
       }
+=======
+      const { data, error } = await supabase
+        .from('schedule_config')
+        .select('config')
+        .eq('id', 1)
+        .single()
+      
+      if (error && error.code !== 'PGRST116') throw error
+      return data?.config || null
+>>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
     } catch (error) {
       console.error('Erro ao buscar configuração:', error)
       return null
