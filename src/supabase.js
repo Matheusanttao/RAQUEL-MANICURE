@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // Configuração temporária do Supabase - desabilitada para desenvolvimento
 // import { createClient } from '@supabase/supabase-js'
 
@@ -18,13 +17,3 @@ export const supabase = {
     upsert: () => ({ select: () => ({ data: [{}], error: null }) })
   })
 }
-=======
-import { createClient } from '@supabase/supabase-js'
-
-// Substitua estas URLs pelas suas do Supabase
-const supabaseUrl = 'SUA_URL_DO_SUPABASE'
-const supabaseKey = 'SUA_CHAVE_DO_SUPABASE'
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
->>>>>>> 97846bb5094ce0614dcdf6709270700564fb9566
-
