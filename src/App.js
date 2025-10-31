@@ -70,20 +70,29 @@ function App() {
           setIsAuthenticated(true);
         }
       } catch (error) {
-        console.error('Erro ao carregar dados:', error);
         // Fallback para localStorage se houver erro
-        const savedConfig = localStorage.getItem('scheduleConfig');
-        const savedBookings = localStorage.getItem('bookings');
-        const savedAuth = localStorage.getItem('isAuthenticated');
-        
-        if (savedConfig) {
-          setScheduleConfig(JSON.parse(savedConfig));
-        }
-        if (savedBookings) {
-          setBookings(JSON.parse(savedBookings));
-        }
-        if (savedAuth === 'true') {
-          setIsAuthenticated(true);
+        try {
+          const savedConfig = localStorage.getItem('scheduleConfig');
+          const savedBookings = localStorage.getItem('bookings');
+          const savedAuth = localStorage.getItem('isAuthenticated');
+          
+          if (savedConfig) {
+            const parsed = JSON.parse(savedConfig);
+            if (parsed && typeof parsed === 'object') {
+              setScheduleConfig(parsed);
+            }
+          }
+          if (savedBookings) {
+            const parsed = JSON.parse(savedBookings);
+            if (Array.isArray(parsed)) {
+              setBookings(parsed);
+            }
+          }
+          if (savedAuth === 'true') {
+            setIsAuthenticated(true);
+          }
+        } catch (localError) {
+          // Se houver erro ao ler localStorage, continuar sem dados
         }
       }
     };
@@ -223,13 +232,18 @@ function App() {
     setConsultationLoading(true);
     try {
       const allBookings = await bookingService.getAllBookings();
-      const userBookings = allBookings.filter(booking => 
-        booking.phone.replace(/\D/g, '') === consultationPhone.replace(/\D/g, '')
-      );
-      setUserBookings(userBookings);
+      if (Array.isArray(allBookings)) {
+        const userBookings = allBookings.filter(booking => 
+          booking && booking.phone && 
+          booking.phone.replace(/\D/g, '') === consultationPhone.replace(/\D/g, '')
+        );
+        setUserBookings(userBookings);
+      } else {
+        setUserBookings([]);
+      }
     } catch (error) {
-      console.error('Erro ao consultar agendamentos:', error);
       window.alert('Erro ao consultar agendamentos. Tente novamente.');
+      setUserBookings([]);
     } finally {
       setConsultationLoading(false);
     }
@@ -245,54 +259,89 @@ function App() {
   // Função para salvar configuração de horários
   const saveScheduleConfig = async (newConfig) => {
     try {
-      setScheduleConfig(newConfig);
-      await configService.saveScheduleConfig(newConfig);
-      // Também salvar no localStorage como backup
-      localStorage.setItem('scheduleConfig', JSON.stringify(newConfig));
+      if (newConfig && typeof newConfig === 'object') {
+        setScheduleConfig(newConfig);
+        await configService.saveScheduleConfig(newConfig);
+        // Também salvar no localStorage como backup
+        try {
+          localStorage.setItem('scheduleConfig', JSON.stringify(newConfig));
+        } catch (localError) {
+          // Se localStorage falhar, continuar sem salvar
+        }
+      }
     } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
       // Fallback para localStorage
-      localStorage.setItem('scheduleConfig', JSON.stringify(newConfig));
+      try {
+        if (newConfig && typeof newConfig === 'object') {
+          localStorage.setItem('scheduleConfig', JSON.stringify(newConfig));
+        }
+      } catch (localError) {
+        // Se localStorage falhar, continuar sem salvar
+      }
     }
   };
 
   // Função para gerar horários disponíveis
   const generateAvailableTimes = (date) => {
-    const dayOfWeek = new Date(date).getDay();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayConfig = scheduleConfig.workingDays[dayNames[dayOfWeek]];
+    if (!date) return [];
     
-    if (!dayConfig.enabled) return [];
-    
-    const times = [];
-    const startTime = dayConfig.startTime;
-    const endTime = dayConfig.endTime;
-    const slotDuration = scheduleConfig.timeSlots;
-    
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-    
-    let currentTime = startHour * 60 + startMin;
-    const endTimeMinutes = endHour * 60 + endMin;
-    
-    while (currentTime < endTimeMinutes) {
-      const hours = Math.floor(currentTime / 60);
-      const minutes = currentTime % 60;
-      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    try {
+      const selectedDate = new Date(date);
+      if (isNaN(selectedDate.getTime())) return [];
       
-      // Verificar se o horário não está ocupado
-      const isBooked = bookings.some(booking => 
-        booking.date === date && booking.time === timeString
-      );
+      const dayOfWeek = selectedDate.getDay();
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       
-      if (!isBooked) {
-        times.push(timeString);
+      if (!scheduleConfig || !scheduleConfig.workingDays) return [];
+      
+      const dayConfig = scheduleConfig.workingDays[dayNames[dayOfWeek]];
+      
+      if (!dayConfig || !dayConfig.enabled) return [];
+      
+      const times = [];
+      const startTime = dayConfig.startTime || '09:00';
+      const endTime = dayConfig.endTime || '18:00';
+      const slotDuration = scheduleConfig.timeSlots || 30;
+      
+      const startParts = startTime.split(':');
+      const endParts = endTime.split(':');
+      
+      if (startParts.length !== 2 || endParts.length !== 2) return [];
+      
+      const [startHour, startMin] = startParts.map(Number);
+      const [endHour, endMin] = endParts.map(Number);
+      
+      if (isNaN(startHour) || isNaN(startMin) || isNaN(endHour) || isNaN(endMin)) return [];
+      
+      let currentTime = startHour * 60 + startMin;
+      const endTimeMinutes = endHour * 60 + endMin;
+      
+      if (currentTime >= endTimeMinutes) return [];
+      
+      while (currentTime < endTimeMinutes) {
+        const hours = Math.floor(currentTime / 60);
+        const minutes = currentTime % 60;
+        
+        if (hours >= 24) break;
+        
+        const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        
+        // Verificar se o horário não está ocupado
+        const isBooked = Array.isArray(bookings) && bookings.some(booking => 
+          booking && booking.date === date && booking.time === timeString && booking.status !== 'cancelled'
+        );
+        
+        if (!isBooked) {
+          times.push(timeString);
+        }
+        
+        currentTime += slotDuration;
       }
       
-      currentTime += slotDuration;
+      return times;
+    } catch (error) {
+      return [];
     }
-    
-    return times;
   };
 
   const handleSubmit = async (e) => {
@@ -338,29 +387,37 @@ function App() {
       const savedBooking = await bookingService.createBooking(newBooking);
       
       // Atualizar estado local
-      setBookings(prev => [...prev, savedBooking]);
-      
-      // Também salvar no localStorage como backup
-      const updatedBookings = [...bookings, savedBooking];
-      localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-      
-      // Mostrar mensagem de sucesso
-      window.alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
-      
-      // Limpar formulário
-      setBookingData({
-        name: '',
-        phone: '',
-        email: '',
-        service: '',
-        date: '',
-        time: '',
-        message: ''
-      });
-      setTouchedFields({});
-      setValidationErrors({});
+      if (savedBooking && savedBooking.id) {
+        setBookings(prev => {
+          const updated = [...prev, savedBooking];
+          // Salvar no localStorage como backup
+          try {
+            localStorage.setItem('bookings', JSON.stringify(updated));
+          } catch (localError) {
+            // Se localStorage falhar, continuar sem salvar
+          }
+          return updated;
+        });
+        
+        // Mostrar mensagem de sucesso
+        window.alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
+        
+        // Limpar formulário
+        setBookingData({
+          name: '',
+          phone: '',
+          email: '',
+          service: '',
+          date: '',
+          time: '',
+          message: ''
+        });
+        setTouchedFields({});
+        setValidationErrors({});
+      } else {
+        throw new Error('Agendamento não foi salvo corretamente');
+      }
     } catch (error) {
-      console.error('Erro ao salvar agendamento:', error);
       window.alert('Erro ao enviar agendamento. Tente novamente.');
     }
   };
@@ -445,7 +502,7 @@ function App() {
             </h1>
             <div className="hero-title-divider"></div>
             <p className="hero-subtitle">
-              Bióloga & Nail Artist Profissional
+              ANTAO & Nail Artist Profissional
             </p>
             <p className="hero-description-text">
               Cada unha é uma <strong>obra de arte única</strong>. Com conhecimento científico, técnica refinada e atenção aos detalhes, transformo suas unhas em verdadeiras joias que refletem sua personalidade.
@@ -940,8 +997,8 @@ function App() {
 
       {/* Modal de Login */}
       {showLogin && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={() => setShowLogin(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Área Administrativa</h3>
               <button onClick={() => setShowLogin(false)} className="close-btn">&times;</button>
@@ -975,8 +1032,8 @@ function App() {
 
       {/* Painel Administrativo */}
       {showAdmin && (
-        <div className="modal-overlay">
-          <div className="admin-panel">
+        <div className="modal-overlay" onClick={() => setShowAdmin(false)}>
+          <div className="admin-panel" onClick={(e) => e.stopPropagation()}>
             <div className="admin-header">
               <h2>Painel Administrativo</h2>
               <button onClick={handleLogout} className="logout-btn">Sair</button>
@@ -1060,13 +1117,16 @@ function App() {
                     Intervalo entre horários (minutos):
                     <input
                       type="number"
-                      value={scheduleConfig.timeSlots}
+                      value={scheduleConfig.timeSlots || 30}
                       onChange={(e) => {
-                        const newConfig = {
-                          ...scheduleConfig,
-                          timeSlots: parseInt(e.target.value)
-                        };
-                        saveScheduleConfig(newConfig);
+                        const value = parseInt(e.target.value);
+                        if (!isNaN(value) && value >= 15 && value <= 120) {
+                          const newConfig = {
+                            ...scheduleConfig,
+                            timeSlots: value
+                          };
+                          saveScheduleConfig(newConfig);
+                        }
                       }}
                       min="15"
                       max="120"
@@ -1079,20 +1139,20 @@ function App() {
               <div className="admin-section">
                 <h3>Agendamentos ({bookings.length})</h3>
                  <div className="bookings-list">
-                   {bookings.map(booking => (
+                   {bookings.filter(booking => booking && booking.id).map(booking => (
                      <div key={booking.id} className="booking-item enhanced">
                        <div className="booking-header">
                          <div className="booking-title">
-                           <h4>{booking.name}</h4>
-                           <span className={`status-badge status-${booking.status}`}>
-                             {booking.status === 'pending' && '⏳ Pendente'}
+                           <h4>{booking.name || 'Nome não informado'}</h4>
+                           <span className={`status-badge status-${booking.status || 'pending'}`}>
+                             {(!booking.status || booking.status === 'pending') && '⏳ Pendente'}
                              {booking.status === 'confirmed' && '✅ Confirmado'}
                              {booking.status === 'cancelled' && '❌ Cancelado'}
                              {booking.status === 'completed' && '🎉 Concluído'}
                            </span>
                          </div>
                          <div className="booking-date">
-                           {new Date(booking.date).toLocaleDateString('pt-BR')} às {booking.time}
+                           {booking.date ? new Date(booking.date).toLocaleDateString('pt-BR') : 'Data não informada'} às {booking.time || 'Horário não informado'}
                          </div>
                        </div>
                        
@@ -1100,22 +1160,22 @@ function App() {
                          <div className="detail-row">
                            <div className="detail-item">
                              <strong>📞 Telefone:</strong>
-                             <span>{booking.phone}</span>
+                             <span>{booking.phone || 'Não informado'}</span>
                            </div>
                            <div className="detail-item">
                              <strong>📧 Email:</strong>
-                             <span>{booking.email}</span>
+                             <span>{booking.email || 'Não informado'}</span>
                            </div>
                          </div>
                          
                          <div className="detail-row">
                            <div className="detail-item">
                              <strong>💅 Serviço:</strong>
-                             <span>{booking.service}</span>
+                             <span>{booking.service || 'Não informado'}</span>
                            </div>
                            <div className="detail-item">
                              <strong>📅 Data de Criação:</strong>
-                             <span>{booking.createdAt ? new Date(booking.createdAt).toLocaleDateString('pt-BR') : 'N/A'}</span>
+                             <span>{booking.createdAt || booking.created_at ? new Date(booking.createdAt || booking.created_at).toLocaleDateString('pt-BR') : 'N/A'}</span>
                            </div>
                          </div>
                          
@@ -1133,17 +1193,21 @@ function App() {
                          <div className="status-control">
                            <label>Status:</label>
                            <select
-                             value={booking.status}
+                             value={booking.status || 'pending'}
                              onChange={async (e) => {
                                try {
-                                 await bookingService.updateBookingStatus(booking.id, e.target.value);
+                                 const newStatus = e.target.value;
+                                 await bookingService.updateBookingStatus(booking.id, newStatus);
                                  const updatedBookings = bookings.map(b => 
-                                   b.id === booking.id ? { ...b, status: e.target.value } : b
-                                 );
+                                   b && b.id === booking.id ? { ...b, status: newStatus } : b
+                                 ).filter(b => b !== null && b !== undefined);
                                  setBookings(updatedBookings);
-                                 localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+                                 try {
+                                   localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+                                 } catch (localError) {
+                                   // Se localStorage falhar, continuar sem salvar
+                                 }
                                } catch (error) {
-                                 console.error('Erro ao atualizar status:', error);
                                  window.alert('Erro ao atualizar status do agendamento.');
                                }
                              }}
@@ -1160,12 +1224,17 @@ function App() {
                            onClick={async () => {
                              if (window.confirm('Tem certeza que deseja excluir este agendamento?')) {
                               try {
-                                await bookingService.deleteBooking(booking.id);
-                                const updatedBookings = bookings.filter(b => b.id !== booking.id);
-                                setBookings(updatedBookings);
-                                localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+                                if (booking && booking.id) {
+                                  await bookingService.deleteBooking(booking.id);
+                                  const updatedBookings = bookings.filter(b => b && b.id !== booking.id);
+                                  setBookings(updatedBookings);
+                                  try {
+                                    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+                                  } catch (localError) {
+                                    // Se localStorage falhar, continuar sem salvar
+                                  }
+                                }
                                } catch (error) {
-                                 console.error('Erro ao excluir agendamento:', error);
                                  window.alert('Erro ao excluir agendamento.');
                                }
                              }
@@ -1191,8 +1260,8 @@ function App() {
 
       {/* Modal de Consulta de Agendamentos */}
       {showConsultation && (
-        <div className="modal-overlay">
-          <div className="modal consultation-modal">
+        <div className="modal-overlay" onClick={closeConsultation}>
+          <div className="modal consultation-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Consultar Agendamento</h2>
               <button onClick={closeConsultation} className="close-btn">&times;</button>
@@ -1226,21 +1295,21 @@ function App() {
                 <div className="consultation-results">
                   <h3>Seus Agendamentos:</h3>
                   <div className="bookings-list">
-                    {userBookings.map((booking, index) => (
-                      <div key={booking.id || index} className="booking-card">
+                    {userBookings.filter(booking => booking).map((booking, index) => (
+                      <div key={booking.id || `booking-${index}`} className="booking-card">
                         <div className="booking-info">
-                          <h4>{booking.name}</h4>
-                          <p><strong>Serviço:</strong> {booking.service}</p>
-                          <p><strong>Data:</strong> {new Date(booking.date).toLocaleDateString('pt-BR')}</p>
-                          <p><strong>Horário:</strong> {booking.time}</p>
-                          <p><strong>Telefone:</strong> {booking.phone}</p>
+                          <h4>{booking.name || 'Nome não informado'}</h4>
+                          <p><strong>Serviço:</strong> {booking.service || 'Não informado'}</p>
+                          <p><strong>Data:</strong> {booking.date ? new Date(booking.date).toLocaleDateString('pt-BR') : 'Não informada'}</p>
+                          <p><strong>Horário:</strong> {booking.time || 'Não informado'}</p>
+                          <p><strong>Telefone:</strong> {booking.phone || 'Não informado'}</p>
                           {booking.message && (
                             <p><strong>Observações:</strong> {booking.message}</p>
                           )}
                         </div>
                         <div className="booking-status">
-                          <span className={`status-badge status-${booking.status}`}>
-                            {booking.status === 'pending' && '⏳ Pendente'}
+                          <span className={`status-badge status-${booking.status || 'pending'}`}>
+                            {(!booking.status || booking.status === 'pending') && '⏳ Pendente'}
                             {booking.status === 'confirmed' && '✅ Confirmado'}
                             {booking.status === 'cancelled' && '❌ Cancelado'}
                             {booking.status === 'completed' && '🎉 Concluído'}
@@ -1252,11 +1321,11 @@ function App() {
                 </div>
               )}
 
-              {userBookings.length === 0 && consultationPhone && !consultationLoading && (
-                <div className="no-bookings">
-                  <p>Nenhum agendamento encontrado para este número de telefone.</p>
-                </div>
-              )}
+                  {userBookings.length === 0 && consultationPhone.trim() && !consultationLoading && (
+                    <div className="no-bookings">
+                      <p>Nenhum agendamento encontrado para este número de telefone.</p>
+                    </div>
+                  )}
             </div>
           </div>
         </div>
