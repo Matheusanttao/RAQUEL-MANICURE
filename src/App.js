@@ -13,6 +13,10 @@ function App() {
     message: ''
   });
 
+  // Estados para validação
+  const [validationErrors, setValidationErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
+
   // Estados para autenticação e administração
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
@@ -87,11 +91,104 @@ function App() {
     loadData();
   }, []);
 
+  // Função de validação
+  const validateField = (name, value) => {
+    let error = '';
+    
+    switch (name) {
+      case 'name':
+        if (!value.trim()) {
+          error = 'Nome é obrigatório';
+        } else if (value.trim().length < 3) {
+          error = 'Nome deve ter pelo menos 3 caracteres';
+        } else if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(value.trim())) {
+          error = 'Nome deve conter apenas letras';
+        }
+        break;
+      case 'phone':
+        if (!value.trim()) {
+          error = 'Telefone é obrigatório';
+        } else {
+          const phoneDigits = value.replace(/\D/g, '');
+          if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+            error = 'Telefone inválido (deve ter 10 ou 11 dígitos)';
+          }
+        }
+        break;
+      case 'email':
+        if (!value.trim()) {
+          error = 'E-mail é obrigatório';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          error = 'E-mail inválido';
+        }
+        break;
+      case 'service':
+        if (!value) {
+          error = 'Selecione um serviço';
+        }
+        break;
+      case 'date':
+        if (!value) {
+          error = 'Data é obrigatória';
+        } else {
+          const selectedDate = new Date(value);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (selectedDate < today) {
+            error = 'Não é possível agendar para datas passadas';
+          }
+        }
+        break;
+      case 'time':
+        if (!value) {
+          error = 'Horário é obrigatório';
+        }
+        break;
+      default:
+        break;
+    }
+    
+    return error;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
     setBookingData(prev => ({
       ...prev,
       [name]: value
+    }));
+
+    // Validar campo quando é alterado
+    if (touchedFields[name]) {
+      const error = validateField(name, value);
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: error
+      }));
+    }
+
+    // Limpar erro de horário se a data mudar
+    if (name === 'date') {
+      setBookingData(prev => ({ ...prev, time: '' }));
+      setValidationErrors(prev => ({ ...prev, time: '' }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Marcar campo como tocado
+    setTouchedFields(prev => ({
+      ...prev,
+      [name]: true
+    }));
+
+    // Validar campo
+    const error = validateField(name, value);
+    setValidationErrors(prev => ({
+      ...prev,
+      [name]: error
     }));
   };
 
@@ -201,6 +298,34 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Marcar todos os campos como tocados
+    const allFields = ['name', 'phone', 'email', 'service', 'date', 'time'];
+    const newTouchedFields = {};
+    const newErrors = {};
+    
+    allFields.forEach(field => {
+      newTouchedFields[field] = true;
+      const error = validateField(field, bookingData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+    
+    setTouchedFields(newTouchedFields);
+    setValidationErrors(newErrors);
+    
+    // Verificar se há erros
+    if (Object.keys(newErrors).length > 0) {
+      // Rolar até o primeiro erro
+      const firstErrorField = Object.keys(newErrors)[0];
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        errorElement.focus();
+      }
+      return;
+    }
+    
     try {
       // Criar novo agendamento
       const newBooking = {
@@ -219,7 +344,10 @@ function App() {
       const updatedBookings = [...bookings, savedBooking];
       localStorage.setItem('bookings', JSON.stringify(updatedBookings));
       
+      // Mostrar mensagem de sucesso
       window.alert('Agendamento enviado com sucesso! Entraremos em contato em breve.');
+      
+      // Limpar formulário
       setBookingData({
         name: '',
         phone: '',
@@ -229,6 +357,8 @@ function App() {
         time: '',
         message: ''
       });
+      setTouchedFields({});
+      setValidationErrors({});
     } catch (error) {
       console.error('Erro ao salvar agendamento:', error);
       window.alert('Erro ao enviar agendamento. Tente novamente.');
@@ -290,12 +420,112 @@ function App() {
 
       {/* Hero Section */}
       <section id="home" className="hero">
+        <div className="hero-background-image">
+          <div className="hero-overlay"></div>
+          <div className="hero-gradient-overlay"></div>
+        </div>
+        <div className="hero-slider-indicators">
+          <div className="indicator active"></div>
+          <div className="indicator"></div>
+          <div className="indicator"></div>
+        </div>
+        <div className="hero-decoration-elements">
+          <div className="decoration-circle decoration-1"></div>
+          <div className="decoration-circle decoration-2"></div>
+          <div className="decoration-line"></div>
+        </div>
+        <div className="container hero-container">
+          <div className="hero-content-wrapper">
+            <div className="hero-badge-top">
+              <span className="badge-icon">💅</span>
+              <span>Especialista em Unhas</span>
+            </div>
+            <h1 className="hero-main-title">
+              Raquel Pinheiro
+            </h1>
+            <div className="hero-title-divider"></div>
+            <p className="hero-subtitle">
+              Bióloga & Nail Artist Profissional
+            </p>
+            <p className="hero-description-text">
+              Cada unha é uma <strong>obra de arte única</strong>. Com conhecimento científico, técnica refinada e atenção aos detalhes, transformo suas unhas em verdadeiras joias que refletem sua personalidade.
+            </p>
+            <div className="hero-stats">
+              <div className="stat-item">
+                <div className="stat-number">+5</div>
+                <div className="stat-label">Anos de Experiência</div>
+              </div>
+              <div className="stat-divider"></div>
+              <div className="stat-item">
+                <div className="stat-number">100%</div>
+                <div className="stat-label">Satisfação</div>
+              </div>
+              <div className="stat-divider"></div>
+              <div className="stat-item">
+                <div className="stat-number">📍</div>
+                <div className="stat-label">Betim, MG</div>
+              </div>
+            </div>
+            <div className="hero-cta-buttons">
+              <a href="#booking" className="hero-btn hero-btn-primary">
+                <span>Agendar Horário</span>
+                <span className="btn-arrow">→</span>
+              </a>
+              <button 
+                onClick={() => {
+                  setShowConsultation(true);
+                  setMobileMenuOpen(false);
+                }} 
+                className="hero-btn hero-btn-secondary"
+              >
+                <span>Consultar Agendamento</span>
+                <span className="btn-icon">🔍</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Services Preview Cards */}
+      <section className="services-preview">
         <div className="container">
-          <div className="hero-content">
-            <h1>Raquel Pinheiro</h1>
-            <p>Bióloga & Especialista em Unhas • Transformando suas unhas em obras de arte</p>
-            <p className="location">📍 Betim, Minas Gerais</p>
-            <a href="#booking" className="cta-button">Agendar Horário</a>
+          <div className="services-grid">
+            <div className="service-card">
+              <img 
+                src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&h=300&fit=crop" 
+                alt="Manicure Artística"
+              />
+              <div className="service-card-overlay">
+                <h3>Manicure Artística</h3>
+              </div>
+            </div>
+            <div className="service-card">
+              <img 
+                src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&h=300&fit=crop" 
+                alt="Unhas de Gel"
+              />
+              <div className="service-card-overlay">
+                <h3>Unhas de Gel</h3>
+              </div>
+            </div>
+            <div className="service-card">
+              <img 
+                src="https://images.unsplash.com/photo-1605497788044-5a32c7078486?w=400&h=300&fit=crop" 
+                alt="Design Exclusivo"
+              />
+              <div className="service-card-overlay">
+                <h3>Design Exclusivo</h3>
+              </div>
+            </div>
+            <div className="service-card">
+              <img 
+                src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&h=300&fit=crop" 
+                alt="Cuidado Profissional"
+              />
+              <div className="service-card-overlay">
+                <h3>Cuidado Profissional</h3>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -424,45 +654,86 @@ function App() {
           <div className="booking-form">
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="name">Nome Completo</label>
+                <label htmlFor="name">
+                  Nome Completo
+                  <span className="required">*</span>
+                </label>
                 <input
                   type="text"
                   id="name"
                   name="name"
                   value={bookingData.name}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touchedFields.name && validationErrors.name ? 'error' : touchedFields.name && !validationErrors.name ? 'valid' : ''}
                   required
+                  placeholder="Digite seu nome completo"
                 />
+                {touchedFields.name && validationErrors.name && (
+                  <span className="error-message">{validationErrors.name}</span>
+                )}
+                {touchedFields.name && !validationErrors.name && (
+                  <span className="success-message">✓ Nome válido</span>
+                )}
               </div>
               <div className="form-group">
-                <label htmlFor="phone">Telefone</label>
+                <label htmlFor="phone">
+                  Telefone
+                  <span className="required">*</span>
+                </label>
                 <input
                   type="tel"
                   id="phone"
                   name="phone"
                   value={bookingData.phone}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touchedFields.phone && validationErrors.phone ? 'error' : touchedFields.phone && !validationErrors.phone ? 'valid' : ''}
                   required
+                  placeholder="(31) 99999-9999"
                 />
+                {touchedFields.phone && validationErrors.phone && (
+                  <span className="error-message">{validationErrors.phone}</span>
+                )}
+                {touchedFields.phone && !validationErrors.phone && (
+                  <span className="success-message">✓ Telefone válido</span>
+                )}
               </div>
               <div className="form-group">
-                <label htmlFor="email">E-mail</label>
+                <label htmlFor="email">
+                  E-mail
+                  <span className="required">*</span>
+                </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
                   value={bookingData.email}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touchedFields.email && validationErrors.email ? 'error' : touchedFields.email && !validationErrors.email ? 'valid' : ''}
                   required
+                  placeholder="seuemail@exemplo.com"
                 />
+                {touchedFields.email && validationErrors.email && (
+                  <span className="error-message">{validationErrors.email}</span>
+                )}
+                {touchedFields.email && !validationErrors.email && (
+                  <span className="success-message">✓ E-mail válido</span>
+                )}
               </div>
               <div className="form-group">
-                <label htmlFor="service">Serviço</label>
+                <label htmlFor="service">
+                  Serviço
+                  <span className="required">*</span>
+                </label>
                 <select
                   id="service"
                   name="service"
                   value={bookingData.service}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touchedFields.service && validationErrors.service ? 'error' : touchedFields.service && !validationErrors.service ? 'valid' : ''}
                   required
                 >
                   <option value="">Selecione um serviço</option>
@@ -473,25 +744,48 @@ function App() {
                   <option value="unhas-artisticas">Unhas Artísticas - R$ 60</option>
                   <option value="pacote-completo">Pacote Completo - R$ 120</option>
                 </select>
+                {touchedFields.service && validationErrors.service && (
+                  <span className="error-message">{validationErrors.service}</span>
+                )}
+                {touchedFields.service && !validationErrors.service && (
+                  <span className="success-message">✓ Serviço selecionado</span>
+                )}
               </div>
               <div className="form-group">
-                <label htmlFor="date">Data</label>
+                <label htmlFor="date">
+                  Data
+                  <span className="required">*</span>
+                </label>
                 <input
                   type="date"
                   id="date"
                   name="date"
                   value={bookingData.date}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touchedFields.date && validationErrors.date ? 'error' : touchedFields.date && !validationErrors.date ? 'valid' : ''}
+                  min={new Date().toISOString().split('T')[0]}
                   required
                 />
+                {touchedFields.date && validationErrors.date && (
+                  <span className="error-message">{validationErrors.date}</span>
+                )}
+                {touchedFields.date && !validationErrors.date && (
+                  <span className="success-message">✓ Data válida</span>
+                )}
               </div>
               <div className="form-group">
-                <label htmlFor="time">Horário</label>
+                <label htmlFor="time">
+                  Horário
+                  <span className="required">*</span>
+                </label>
                 <select
                   id="time"
                   name="time"
                   value={bookingData.time}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touchedFields.time && validationErrors.time ? 'error' : touchedFields.time && !validationErrors.time ? 'valid' : ''}
                   required
                   disabled={!bookingData.date}
                 >
@@ -504,7 +798,13 @@ function App() {
                   <small className="form-help">Selecione uma data primeiro</small>
                 )}
                 {bookingData.date && generateAvailableTimes(bookingData.date).length === 0 && (
-                  <small className="form-help">Nenhum horário disponível para esta data</small>
+                  <small className="form-help error">Nenhum horário disponível para esta data</small>
+                )}
+                {touchedFields.time && validationErrors.time && (
+                  <span className="error-message">{validationErrors.time}</span>
+                )}
+                {touchedFields.time && !validationErrors.time && bookingData.time && (
+                  <span className="success-message">✓ Horário selecionado</span>
                 )}
               </div>
               <div className="form-group">
@@ -622,6 +922,21 @@ function App() {
           </div>
         </div>
       </footer>
+
+      {/* WhatsApp Floating Button */}
+      <a 
+        href="https://wa.me/5531999999999?text=Olá!%20Gostaria%20de%20agendar%20um%20horário" 
+        className="whatsapp-float"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Fale conosco no WhatsApp"
+      >
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <path d="M15 0C6.72 0 0 6.72 0 15c0 2.64.72 5.13 1.98 7.28L0 30l7.83-1.95A14.95 14.95 0 0015 30c8.28 0 15-6.72 15-15S23.28 0 15 0z" fill="#25D366"/>
+          <path d="M11.57 9.09c-.3-.66-.61-1.03-1.02-1.16-.53-.18-1.14-.18-1.75-.18s-1.22.02-1.86.36c-.64.34-1.14.97-1.48 1.9-.52 1.42-.52 3.46-.52 5.14s0 3.72.52 5.14c.34.93.84 1.56 1.48 1.9.64.34 1.3.36 1.86.36s1.22-.02 1.75-.18c.41-.13.72-.5 1.02-1.16.3-.66.73-1.62 1.02-2.28.18-.4.18-.72 0-1.12-.18-.4-.73-1.12-1.02-1.52-.3-.4-.53-.67-.53-1.02s.23-.62.53-1.02c.3-.4.84-1.12 1.02-1.52z" fill="white"/>
+          <path d="M15 6c-4.95 0-9 4.05-9 9 0 1.59.42 3.08 1.14 4.38L6 23l3.62-.86C10.92 23.58 12.91 24 15 24c4.95 0 9-4.05 9-9s-4.05-9-9-9zm4.41 12.59c-.22.62-1.14 1.14-1.56 1.18-.42.05-.73.04-1.06-.05-.33-.09-.73-.22-1.26-.44-2.22-.88-3.67-3.05-3.78-3.2-.11-.14-.89-1.14-.89-2.18s.56-1.54.73-1.72c.17-.18.37-.22.5-.22s.33 0 .47.06c.14.05.33.22.47.73.14.5.47 1.72.51 1.85.04.13.07.28 0 .44s-.09.33-.17.5c-.09.17-.19.33-.28.45-.09.11-.18.25-.08.49s.28.45.56.73c.39.39.82.75 1.17.96.48.29.88.38 1.07.48.18.09.28.07.39-.04.11-.11.45-.55.57-.73s.22-.28.37-.17.56.28 1.06.42c.5.15.89.25 1.01.39.12.14.12.83-.1 1.45z" fill="white"/>
+        </svg>
+      </a>
 
       {/* Modal de Login */}
       {showLogin && (
